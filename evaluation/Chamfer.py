@@ -13,10 +13,44 @@ def compute_mesh_scale(gt_mesh):
     scale = np.linalg.norm(max_bound - min_bound)  # 对角线长度
     return scale
 
-def chamfer_distance(mesh_a, mesh_b, n_samples=100000, scale=1.0):
+def compute_points_scale(gt_mesh):
+    vertices = np.asarray(gt_mesh.points)
+    min_bound = vertices.min(axis=0)
+    max_bound = vertices.max(axis=0)
+    scale = np.linalg.norm(max_bound - min_bound)  # 对角线长度
+    return scale
+
+def chamfer_distance(mesh_a, mesh_b, n_samples=1000000, scale=1.0):
     print("Sampling points!")
     pts_a = sample_points_from_mesh(mesh_a, n_samples)
     pts_b = sample_points_from_mesh(mesh_b, n_samples)
+
+    # 建立KD树加速最近邻查找
+    tree_a = cKDTree(pts_a)
+    tree_b = cKDTree(pts_b)
+
+    print("Calculating distances")
+    # 单向Hausdorff距离
+    dists_ab, _ = tree_b.query(pts_a, k=1)
+    dists_ba, _ = tree_a.query(pts_b, k=1)
+
+    cd_ab = np.mean(dists_ab ** 2)
+    cd_ba = np.mean(dists_ba ** 2)
+    chamfer = cd_ab + cd_ba
+    chamfer /= scale ** 2
+    print("Finished calculating!")
+
+    return chamfer
+
+def chamfer_distance_points(mesh_a, points_b, n_samples=1000000, scale=1.0):
+    print("Sampling points!")
+    pts_a = sample_points_from_mesh(mesh_a, n_samples)
+    pts_b = np.asarray(points_b.points)
+
+    num_points = pts_b.shape[0]
+    if num_points > n_samples:
+        idx = np.random.choice(num_points, n_samples, replace=False)
+        pts_b = pts_b[idx]
 
     # 建立KD树加速最近邻查找
     tree_a = cKDTree(pts_a)

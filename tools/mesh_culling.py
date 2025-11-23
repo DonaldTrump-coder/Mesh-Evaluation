@@ -8,6 +8,10 @@ def file_2_mesh(path):
     mesh = o3d.io.read_triangle_mesh(path)
     return mesh
 
+def file_2_pcd(path):
+    pcd = o3d.io.read_point_cloud(path)
+    return pcd
+
 def get_intrinsics(camera):
     if camera.model == "PINHOLE":
         fx, fy, cx, cy = camera.params
