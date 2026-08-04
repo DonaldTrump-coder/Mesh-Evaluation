@@ -19,7 +19,7 @@ def get_intrinsics(camera):
         f, cx, cy = camera.params
         fx = fy = f
     else:
-        raise NotImplementedError(f"不支持的相机模型: {camera.model}")
+        raise NotImplementedError(f"Unsupported camera model: {camera.model}")
     
     K = np.array([[fx, 0, cx],
                   [0, fy, cy],
@@ -52,7 +52,6 @@ def mesh_culling(model_dir:str, # sparse/0
     triangles = np.asarray(mesh.triangles)
     visible_faces_global = set()
 
-    # 初始化射线场景
     scene = o3d.t.geometry.RaycastingScene()
     mesh_id = scene.add_triangles(mesh_t)
 
@@ -65,12 +64,10 @@ def mesh_culling(model_dir:str, # sparse/0
         width = cam_data["width"]
         height = cam_data["height"]
 
-        # 相机外参矩阵 (4x4)
         extrinsics = np.eye(4)
         extrinsics[:3, :3] = R
         extrinsics[:3, 3:] = t
 
-        # 创建光线（pinhole 模型）
         intrinsics_tensor = o3d.core.Tensor(K, o3d.core.Dtype.Float32)
         extrinsics_tensor = o3d.core.Tensor(extrinsics, o3d.core.Dtype.Float32)
         rays = o3d.t.geometry.RaycastingScene.create_rays_pinhole(
@@ -80,13 +77,11 @@ def mesh_culling(model_dir:str, # sparse/0
             height_px=height,
         )
 
-        # 执行射线投射
         ans = scene.cast_rays(rays)
 
         primitive_ids = ans['primitive_ids'].numpy()
         geometry_ids = ans['geometry_ids'].numpy()
 
-        # 只保留属于 mesh 的索引
         valid_faces = primitive_ids[(primitive_ids != 2**32 - 1) & (geometry_ids == mesh_id)]
         if len(valid_faces) == 0:
             print(f"No visible faces detected for {img_name}")
@@ -102,6 +97,6 @@ def mesh_culling(model_dir:str, # sparse/0
     final_mesh = mesh.select_by_index(unique_vertices, cleanup=True)
     final_mesh.compute_vertex_normals()
     print("Culling finished!")
-    final_mesh = post_process_mesh(final_mesh, 50)
+    #final_mesh = post_process_mesh(final_mesh, 50)
 
     return final_mesh

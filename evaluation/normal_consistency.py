@@ -15,7 +15,6 @@ def normal_consistency(mesh_a, mesh_b, n_samples=500000, angle_threshold=10.0):
     print("Sampling points from meshes...")
     pcd_a = mesh_a.sample_points_uniformly(number_of_points=n_samples)
     pts_a = np.asarray(pcd_a.points)
-    # 使用 KDTree 找采样点最近顶点法线
     tree_vertices_a = cKDTree(vertices_a)
     _, idx_a = tree_vertices_a.query(pts_a)
     sampled_normals_a = normals_a[idx_a]
@@ -36,10 +35,9 @@ def normal_consistency(mesh_a, mesh_b, n_samples=500000, angle_threshold=10.0):
     _, idx_b2a = tree_a_points.query(pts_b)
     corresponding_normals_a = sampled_normals_a[idx_b2a]
 
-    # 计算夹角
     def angle_between_normals(n1, n2):
         dot = np.einsum('ij,ij->i', n1, n2)
-        dot = np.clip(np.abs(dot), 0.0, 1.0)  # 忽略翻面
+        dot = np.clip(np.abs(dot), 0.0, 1.0)
         return np.degrees(np.arccos(dot))
 
     angles_a = angle_between_normals(sampled_normals_a, corresponding_normals_b)
@@ -65,21 +63,17 @@ def normal_consistency(mesh_a, mesh_b, n_samples=500000, angle_threshold=10.0):
     return f1, mean_angle
 
 def normal_consistency_points(mesh_a, points_b, n_samples=1000000, angle_threshold=5.0):
-    # --- 处理 mesh_a ---
     mesh_a.compute_vertex_normals()
     vertices_a = np.asarray(mesh_a.vertices)
     normals_a = np.asarray(mesh_a.vertex_normals)
 
-    # 采样 mesh_a 点
     pcd_a = mesh_a.sample_points_uniformly(number_of_points=n_samples)
     pts_a = np.asarray(pcd_a.points)
 
-    # 采样点对应顶点法线
     tree_vertices_a = cKDTree(vertices_a)
     _, idx_a = tree_vertices_a.query(pts_a)
     sampled_normals_a = normals_a[idx_a]
 
-    # --- 处理 points_b ---
     if not points_b.has_normals():
         points_b.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.2, max_nn=30)
@@ -89,7 +83,6 @@ def normal_consistency_points(mesh_a, points_b, n_samples=1000000, angle_thresho
     vertices_b = np.asarray(points_b.points)
     normals_b = np.asarray(points_b.normals)
 
-    # 下采样点云到 n_samples
     num_points_b = vertices_b.shape[0]
     if num_points_b > n_samples:
         idx = np.random.choice(num_points_b, n_samples, replace=False)
@@ -103,17 +96,15 @@ def normal_consistency_points(mesh_a, points_b, n_samples=1000000, angle_thresho
     tree_a = cKDTree(pts_a)
     tree_b = cKDTree(pts_b)
 
-    # 最近邻匹配
     _, idx_a2b = tree_b.query(pts_a)
     _, idx_b2a = tree_a.query(pts_b)
 
     corresponding_normals_b = sampled_normals_b[idx_a2b]
     corresponding_normals_a = sampled_normals_a[idx_b2a]
 
-    # --- 计算夹角 ---
     def angle_between_normals(n1, n2):
         dot = np.einsum('ij,ij->i', n1, n2)
-        dot = np.clip(np.abs(dot), 0.0, 1.0)  # 忽略翻面
+        dot = np.clip(np.abs(dot), 0.0, 1.0)
         return np.degrees(np.arccos(dot))
 
     angles_a = angle_between_normals(sampled_normals_a, corresponding_normals_b)

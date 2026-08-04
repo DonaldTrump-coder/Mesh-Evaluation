@@ -22,7 +22,6 @@ def colmap_camera_to_pyrender(cameras, images, image_id):
     image = images[image_id]
     camera = cameras[image.camera_id]
 
-    # --- 内参 ---
     params = camera.params
     if camera.model in ["SIMPLE_PINHOLE", "SIMPLE_RADIAL"]:
         fx = fy = params[0]
@@ -44,7 +43,6 @@ def colmap_camera_to_pyrender(cameras, images, image_id):
         "height": height
     }
 
-    # --- 外参 ---
     qvec = image.qvec
     tvec = image.tvec.reshape(3,1)
 
@@ -55,14 +53,12 @@ def colmap_camera_to_pyrender(cameras, images, image_id):
     R_cw = R_wc.T
     t_cw = -R_cw @ tvec
 
-    # Pyrender 坐标系调整：Z 轴反向
     R_flip = np.diag([1, 1, -1])
-    t_flip = np.zeros(3)  # 不偏移
+    t_flip = np.zeros(3)
 
     R_final = R_flip @ R_cw
     t_final = R_flip @ t_cw.flatten()
 
-    # 组合成 4x4 pose
     pose = np.eye(4)
     pose[:3, :3] = R_final
     pose[:3, 3] = t_final
@@ -70,18 +66,15 @@ def colmap_camera_to_pyrender(cameras, images, image_id):
     return intrinsic, pose
 
 def rendering_quality(mesh, model_dir: str):
-    # --- 读取 COLMAP 模型 ---
     image_dir = os.path.join(os.path.dirname(os.path.dirname(model_dir)), "images")
     cameras, images, points3D = colmap.read_model(model_dir, ext=".bin")
     width, height = next(iter(cameras.values())).width, next(iter(cameras.values())).height
 
-    # --- 转换为 trimesh ---
     vertices = np.asarray(mesh.vertices)
     faces = np.asarray(mesh.triangles)
     vertex_colors = np.asarray(mesh.vertex_colors)
     trimesh_mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_colors=(vertex_colors*255).astype(np.uint8))
 
-    # --- 封装 pyrender Mesh ---
     pyrender_mesh = pyrender.Mesh.from_trimesh(trimesh_mesh, smooth=False)
     r = pyrender.OffscreenRenderer(viewport_width=width, viewport_height=height)
 
@@ -96,12 +89,10 @@ def rendering_quality(mesh, model_dir: str):
             znear=0.001, zfar=1000.0
         )
 
-        # --- 创建场景 ---
         scene = pyrender.Scene(bg_color=[1.0,1.0,1.0,1.0], ambient_light=[1.0,1.0,1.0])
         scene.add(pyrender_mesh)
         scene.add(camera, pose=pose)
 
-        # --- 渲染 ---
         img_np, _ = r.render(scene)
         rendered_images[image.name] = img_np
         print(image.name)
@@ -122,16 +113,12 @@ def rendering_quality(mesh, model_dir: str):
         gt_np = cv2.imread(img_path)
         gt_np = cv2.cvtColor(gt_np, cv2.COLOR_BGR2RGB)
 
-        # ---- 计算 PSNR ----
         psnr_val = compute_psnr(render_np, gt_np)
         psnr_list.append(psnr_val)
 
-        # ---- 计算 SSIM ----
         ssim_val = compute_ssim(render_np, gt_np)
         ssim_list.append(ssim_val)
 
-        # ---- 计算 LPIPS ----
-        # 将 numpy 转 torch.Tensor 并归一化到 [-1,1]
         render_tensor = torch.from_numpy(render_np.astype(np.float32)/127.5 - 1.0).permute(2,0,1).unsqueeze(0)
         gt_tensor = torch.from_numpy(gt_np.astype(np.float32)/127.5 - 1.0).permute(2,0,1).unsqueeze(0)
 

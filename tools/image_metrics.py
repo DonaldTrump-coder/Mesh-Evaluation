@@ -7,23 +7,20 @@ def compute_lpips(img1: torch.Tensor,
                   img2: torch.Tensor,
                   net: str = 'alex',
                   use_gpu: bool = False) -> float:
-    # 创建 LPIPS 模型
     loss_fn = lpips.LPIPS(net=net)
     if use_gpu and torch.cuda.is_available():
         loss_fn = loss_fn.cuda()
         img1 = img1.cuda()
         img2 = img2.cuda()
     
-    # 计算
     with torch.no_grad():
         d = loss_fn(img1, img2)
     return d.item()
 
 def compute_ssim(img1, img2):
     if img1.shape != img2.shape:
-        raise ValueError(f"图像尺寸不一致: {img1.shape} vs {img2.shape}")
+        raise ValueError(f"Image size mismatch: {img1.shape} vs {img2.shape}")
 
-    # 转为 float32 并归一化到 [0, 1]
     img1 = img1.astype(np.float32) / 255.0 if img1.max() > 1.0 else img1.astype(np.float32)
     img2 = img2.astype(np.float32) / 255.0 if img2.max() > 1.0 else img2.astype(np.float32)
 
@@ -32,9 +29,8 @@ def compute_ssim(img1, img2):
 
 def compute_psnr(img1, img2, max_val=255.0):
     if img1.shape != img2.shape:
-        raise ValueError(f"图像尺寸不一致: {img1.shape} vs {img2.shape}")
+        raise ValueError(f"Image size mismatch: {img1.shape} vs {img2.shape}")
 
-    # 转为 float32 并归一化
     img1 = img1.astype(np.float32)
     img2 = img2.astype(np.float32)
 
